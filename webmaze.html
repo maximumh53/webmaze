@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<!-- saved from url=(0089)https://sakai.duke.edu/access/content/group/COMPSCI-311-001-Sp23/Assignments/webmaze.html -->
+<html><link type="text/css" rel="stylesheet" id="dark-mode-custom-link"><link type="text/css" rel="stylesheet" id="dark-mode-general-link"><style lang="en" type="text/css" id="dark-mode-custom-style"></style><style lang="en" type="text/css" id="dark-mode-native-style"></style><style lang="en" type="text/css" id="dark-mode-native-sheet"></style><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<link rel="stylesheet" href="./webmaze_files/github-markdown.min.css">
+<link rel="stylesheet" href="./webmaze_files/default.min.css">
+<link rel="stylesheet" href="./webmaze_files/katex.min.css">
+<link rel="stylesheet" href="./webmaze_files/texmath.min.css">
+<link rel="stylesheet" href="file:///Users/cunha/.vscode/extensions/goessner.mdmath-2.7.4/themes/default/style.css">
+
+</head>
+<body class="markdown-body">
+<h1 dir="auto" id="webmaze">WebMaze</h1>
+<p dir="auto">In this assignment we will implement a client-server pair using remote procedure calls (RPCs) through a <a href="https://en.wikipedia.org/wiki/Representational_state_transfer">REST</a> interface.  In particular, we will implement a Web server and a client to allow execution of your NetMaze client and report statistics.</p>
+<p dir="auto">As usual for most of these systems, our solution will comprise:</p>
+<ol dir="auto">
+<li dir="auto">A client program that makes REST requests, and</li>
+<li dir="auto">A server program that responds to client requests.</li>
+</ol>
+<h2 dir="auto" id="using-a-rest-api">Using a REST API</h2>
+<p dir="auto">A REST API allows systems to exchange messages through widely-available Web protocols in a platform independent fashion. In short, a REST server offers a set of URL <em>endpoints</em>, each with specific semantics, that clients can access to interact with the server.  In this assignment, the different endpoints will provide different functionality related to NetMaze executions.  Usually, the encoding used to exchange data between REST clients and servers is <a href="https://en.wikipedia.org/wiki/JSON">JSON</a>.</p>
+<p dir="auto">For example, consider the following shell command (assuming that the <code>wget</code> tool is installed and that Internet access is available):</p>
+<pre><code class="code-line language-bash" dir="auto"><div>wget -q https://www.peeringdb.com/api/ix/1 -O-
+</div></code></pre>
+<p dir="auto">The <code>wget</code> command makes an HTTP request to the URL passed as a parameter (for full details, check the <a href="https://linux.die.net/man/1/wget">manual page for <code>wget</code></a>). The <code>https://www.peeringdb.com/api/ix/1</code> URL is an endpoint in <a href="https://www.peeringdb.com/">PeeringDB</a>'s <a href="https://www.peeringdb.com/apidocs/">REST API</a>, and the semantics associated with a request to <code>/api/ix/1</code> is to retrieve information about the <a href="https://en.wikipedia.org/wiki/Internet_exchange_point">Internet Exchange</a> (<code>ix</code>) with identifier <code>1</code>.  Below is a more detailed look at each component of the URL:</p>
+<table dir="auto">
+<thead dir="auto">
+<tr dir="auto">
+<th>URL Part</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody dir="auto">
+<tr dir="auto">
+<td><code>https://www.peeringdb.com</code></td>
+<td>The REST server's IP address and TCP port</td>
+</tr>
+<tr dir="auto">
+<td><code>/api</code></td>
+<td>Path where the REST API is hosted</td>
+</tr>
+<tr dir="auto">
+<td><code>/ix</code></td>
+<td>Endpoint to manage Internet Exchange Points</td>
+</tr>
+<tr dir="auto">
+<td><code>/1</code></td>
+<td>Manage the IXP with identifier <code>1</code></td>
+</tr>
+</tbody>
+</table>
+<p dir="auto">The response is in JSON format, and should contain the following
+information (among other information):</p>
+<pre><code class="code-line language-{json}" dir="auto"><code><div>{"meta": {}, "data": [{"id": 1, "org_id": 2, "org": {"id": 2, "name": "Equinix", "website": "http://www.equinix.com", ...
+</div></code></code></pre>
+<p dir="auto">A REST API can support any HTTP method.  Common methods and semantics
+are listed in the table below, but REST servers can define and support
+other methods (e.g., <code>UPDATE</code>).  The default method is <code>GET</code>, which
+usually retrieves information from the server.  This is why the example
+command above retrieved information about IXP <code>1</code>.</p>
+<table dir="auto">
+<thead dir="auto">
+<tr dir="auto">
+<th>HTTP/REST Method</th>
+<th>Semantics</th>
+</tr>
+</thead>
+<tbody dir="auto">
+<tr dir="auto">
+<td><code>GET</code></td>
+<td>Retrieve object or data</td>
+</tr>
+<tr dir="auto">
+<td><code>HEAD</code></td>
+<td>Retrieve a summary of an object of data</td>
+</tr>
+<tr dir="auto">
+<td><code>PUT</code></td>
+<td>Add or overwrite an object or data</td>
+</tr>
+<tr dir="auto">
+<td><code>POST</code></td>
+<td>Add or update an object or data</td>
+</tr>
+<tr dir="auto">
+<td><code>DELETE</code></td>
+<td>Remove an object or data</td>
+</tr>
+</tbody>
+</table>
+<p dir="auto">The format and information in URLs are defined by the REST API provided
+by the server. We call each such URL an <em>endpoint</em>.</p>
+<h2 dir="auto" id="motivation-and-examples">Motivation and Examples</h2>
+<p dir="auto">We will implement a REST API server for running NetMaze and showing results.  The idea behind the REST API is to provide a library that can be accessed programmatically.  Many services on the Internet provide REST APIs, for example:</p>
+<ul dir="auto">
+<li dir="auto"><a href="https://docs.stratz.com/index.html">Stratz</a> gets information from <a href="https://developer.valvesoftware.com/wiki/Steam_Web_API">Valve's API</a> and provide their own API REST with derived information.</li>
+<li dir="auto"><a href="https://developer.twitter.com/en/docs/api-reference-index">Twitter</a> lets developers perform tasks such as query statistics about trending topics and make automated posts.</li>
+<li dir="auto"><a href="https://www.vultr.com/api/">Vultr</a> and other cloud providers allow tenants to automate management tasks.</li>
+<li dir="auto"><a href="https://developers.aliexpress.com/en/doc.htm?docId=108974&amp;docType=1">AliExpress</a> allows vendors to manage store fronts and product catalogs.</li>
+<li dir="auto"><a href="https://docs.github.com/en/rest">GitHub</a> allows developers and companies to manage repositories and organizations (e.g., deploying continuous integration or configuring access).</li>
+</ul>
+<h2 dir="auto" id="interface-description">Interface Description</h2>
+<h3 dir="auto" id="rest-api-server">REST API Server</h3>
+<p dir="auto">The server is responsible for storing information about NetMaze runs and responding to new requests arriving at URL endpoints.  The server should implement at least three endpoints supporting the <code>GET</code> method to summarize game results.  The <em>server</em> can be implemented using any technology, library, and Web framework you would like.  A common choice for Python is using the <a href="http://flask.pocoo.org/">Flask microframework</a>.</p>
+<ol dir="auto">
+<li dir="auto">
+<p dir="auto"><code>POST /api/run/{id}</code>: Run a NetMaze client with the given <code>id</code>.  For example, a <code>POST</code> request to <code>/api/run/ifs4</code> should run a NetMaze client identifying as <code>ifs4</code>.  Information about the run must be stored on the API server for later retrieval by other API endpoints (below).  The response should be a JSON object containing a unique alphanumeric identifier string generated by the API server given by the <code>runId</code> key:</p>
+<pre><code class="code-line language-json" dir="auto"><div><span class="hljs-punctuation">{</span>
+     <span class="hljs-attr">"runId"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"877ea7c5047d"</span>
+<span class="hljs-punctuation">}</span>
+</div></code></pre>
+<blockquote dir="auto">
+<p dir="auto">You can generate unique identifiers using a library such as <a href="https://docs.python.org/3/library/uuid.html">UUID</a>.</p>
+</blockquote>
+</li>
+<li dir="auto">
+<p dir="auto"><code>GET /api/queries?run={runId}&amp;limit={count}&amp;start={index}</code>: Retrieve a page of queries related to a given <code>runId</code>.</p>
+<p dir="auto">This request receives three parameters.  The <code>runId</code> parameter specifies a <code>runId</code> previously returned by a <code>POST</code> request to <code>/api/run</code>.  The <code>limit</code> and <code>start</code> implement <a href="https://developer.atlassian.com/server/confluence/pagination-in-the-rest-api/">pagination</a>.  Pagination is necessary whenever the amount of data to send in a response grows large. The idea is that the server will respond with a "page" of results.  A response must contain (up to) <code>limit</code> entries starting by the entry number given in <code>start</code>.</p>
+<p dir="auto">For example, a request may ask for the first 10 queries for the run with identifier <code>877ea7c5047d</code> sending a <code>GET</code> request to <code>/api/queries?run=877ea7c5047d&amp;limit=10&amp;start=1</code>.  The response should be a JSON object containing: (1) a <code>runId</code> key with the run identifier in the request, (2) the <code>limit</code> in the request, (3) the <code>start</code> index in the request, (4) the corresponding list of <code>queries</code>, and URLs for the <code>prev</code>ious and <code>next</code> page of results in the run:</p>
+<pre><code class="code-line language-json" dir="auto"><div><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"runId"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"877ea7c5047d"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"limit"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"start"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"queries"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>&lt;q1&gt;<span class="hljs-punctuation">,</span> &lt;q2&gt;<span class="hljs-punctuation">,</span> ...<span class="hljs-punctuation">,</span> &lt;q10&gt;<span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"prev"</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">null</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"next"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"/api/queries?run=877ea7c5047d&amp;limit=10&amp;start=11"</span>
+<span class="hljs-punctuation">}</span>
+</div></code></pre>
+<p dir="auto">If there is no previous or next page of results, set the respective field in the response to <code>null</code>.  A query should be encoded as a JSON object containing a <code>connection_source</code> key containing a string specifying whether the connection was initiated by the NetMaze client or the NetMaze server.  In other words, <code>connection_source</code> should match the program that initiated the connection (by calling <code>socket.connect()</code> or an equivalent function).  The <code>connection_source</code> key should contain only <code>"client"</code> or <code>"server"</code> as values.  The query JSON object should also contain a <code>connection_port</code> key containing an integer with the port identifying the connection, and a <code>query_target</code> key containing an integer with the query's port (where the client will send the ID message).  For example:</p>
+<pre><code class="code-line language-json" dir="auto"><div><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"connection_source"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"client"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"connection_port"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">51502</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"query_target"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">51507</span>
+<span class="hljs-punctuation">}</span>
+</div></code></pre>
+<blockquote dir="auto">
+<p dir="auto">Adapt your NetMaze client to print this information on its logs to ease loading it in your REST API.</p>
+</blockquote>
+<p dir="auto">Error handling:</p>
+<ul dir="auto">
+<li dir="auto">
+<p dir="auto">If a request arrives before NetMaze has finished running, answer the request with an HTTP 204 (No Content) status code.</p>
+</li>
+<li dir="auto">
+<p dir="auto">Requests and responses must be limited to 30 entries; if a request sets <code>limit</code> to a value larger than 30, answer the request with an HTTP 400 (Bad Request) <a href="https://en.wikipedia.org/wiki/List_of_HTTP_status_codes">error code</a>.</p>
+</li>
+</ul>
+</li>
+<li dir="auto">
+<p dir="auto"><code>GET /api/list?limit={count}&amp;start={index}</code>: Retrieve a page of completed runs. As in the previous endpoint, the <code>limit</code> and <code>start</code> parameters implement pagination.</p>
+<p dir="auto">For example, the response to a request for <code>/api/list?limit=10&amp;start=10</code> should contain a list of 10 runs, starting with the 10th run executed through the API.  Responses should behave similarly to the ones for <code>/api/queries</code>, but contain a <code>runIds</code> key containing a list of strings with completed runs.</p>
+<pre><code class="code-line language-json" dir="auto"><div><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"limit"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"start"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"runIds"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>&lt;id10&gt;<span class="hljs-punctuation">,</span> &lt;id11&gt;<span class="hljs-punctuation">,</span> ...<span class="hljs-punctuation">,</span> &lt;id19&gt;<span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"prev"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"/api/list?limit=9&amp;start=1"</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">"next"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"/api/list?limit=10&amp;start=20"</span>
+<span class="hljs-punctuation">}</span>
+</div></code></pre>
+</li>
+</ol>
+<h3 dir="auto" id="client-program">Client Program</h3>
+<p dir="auto">You should also implement a command-line program to issue REST requests toward the server.  The <em>client</em> must <em>not</em> use any libraries to handle HTTP requests. For example, the client cannot use the <a href="https://docs.python.org/3/library/http.client.html"><code>http.client</code></a>, <a href="https://docs.python.org/3/library/urllib.request.html#module-urllib.request"><code>urllib.request</code></a>, or <a href="https://docs.python-requests.org/en/master/"><code>requests</code></a> libraries.</p>
+<blockquote dir="auto">
+<p dir="auto">The goal of this restriction is to force students to get experience with (1) creating and receiving data over TCP connections as well as (2) creating and handling HTTP requests and responses.  If you find your code is not handling HTTP request/responses, then you are likely using a disallowed library.  One specific task that your code must handle is reading the HTTP response's <a href="https://www.geeksforgeeks.org/http-headers-content-length/"><code>Content-Length</code> header</a> to control reception of the response.  Please contact the instructor for clarification when uncertain about whether a library is allowed.</p>
+</blockquote>
+<p dir="auto">The client should support at least three types of requests:</p>
+<ol dir="auto">
+<li dir="auto">
+<p dir="auto">Submit a new run request receiving the <code>id</code> from the command line and calling the <code>/api/run</code> endpoint.</p>
+</li>
+<li dir="auto">
+<p dir="auto">Get a list of completed run identifiers from the server using the <code>/api/list</code> endpoint.</p>
+</li>
+<li dir="auto">
+<p dir="auto">Compute the mean and variance of the number of queries across all completed NetMaze runs on the server by combining the <code>/api/list</code> and <code>/api/queries</code> endpoints.</p>
+</li>
+</ol>
+<h3 dir="auto" id="implementation-details-and-restrictions">Implementation Details and Restrictions</h3>
+<p dir="auto">Keep in mind that clients should not use any library that handles HTTP.
+Clients and servers can use other libraries.  For example, using a
+library to manipulate <a href="https://docs.python.org/3/library/json.html">JSON</a> if fine on either the server
+of the client.</p>
+<p dir="auto">Document the interface to your command-line client.  Consider using Python's <a href="https://docs.python.org/3/library/argparse.html"><code>argparse</code></a> library for handling the command-line parameters as it can generate the documentation automatically.  Your client should receive the REST API server's address and port as command-line parameters; they cannot be hardcoded in the code.</p>
+<p dir="auto">You can use any programming language to implement your server and client, and possibly different languages for each.  As we are using open standards (JSON and REST), your programs should interoperate with your colleagues programs.</p>
+<h2 dir="auto" id="grading">Grading</h2>
+<p dir="auto">The first student that identifies incoherence, ambiguity, or any problem
+with the spec should point it out to the instructor.  These students
+will be rewarded extra credit depending on the subtlety and impact of
+the reported problem.</p>
+<p dir="auto">At least the following checks will be performed:</p>
+<ul dir="auto">
+<li dir="auto">All endpoints on the server work correctly.</li>
+<li dir="auto">The client implements all required operations.</li>
+<li dir="auto">The client does not use any library to handle HTTP messages.</li>
+</ul>
+<h3 dir="auto" id="extra-credit">Extra credit</h3>
+<p dir="auto">The implementation of additional functionality on the server and client
+may be worth extra credit. Check with the instructor if you want to
+pursue such an idea. Example extensions include:</p>
+<ul dir="auto">
+<li dir="auto">Extending the server to provide a Web interface (up to 20% extra credits)</li>
+<li dir="auto">Extending the server to keep historical information between runs (you will need to create some sort of data storage or use a database, 20% extra credits)</li>
+<li dir="auto">Providing a documentation for the REST API (there are tools that <a href="https://stackoverflow.com/questions/14295322/what-tools-are-available-to-auto-produce-documentation-for-a-rest-api-written-in">generate documentation automatically</a>, 15% extra credits)</li>
+</ul>
+<h2 dir="auto" id="submission">Submission</h2>
+<p dir="auto">Submit on Sakai the code for your REST servers and client as well as a PDF containing documentation for your project.</p>
+<p dir="auto">Your documentation should contain instructions describing how to execute your server and client.  Assume that the instructor is unfamiliar with any of the technologies, libraries, and frameworks used.  There is no need to explain everything, but instructions on how to execute the server are a must, and pointers to documentation (e.g., to the project websites) are desirable.  A section on "troubleshooting" common problems would also be useful.  Include any relevant information related to the frameworks and libraries used in your implementation if they impact how your server must be run.</p>
+<p dir="auto">The documentation should also discuss why a library or framework was chosen.  For example, does the chosen framework compare favorably <em>versus</em> alternatives?  The documentation should also discuss the challenges encountered during the project and how they were addressed.</p>
+
+
+<div id="forest-ext-shadow-host"><template shadowrootmode="open"><head></head><div id="root"></div></template></div></body></html>

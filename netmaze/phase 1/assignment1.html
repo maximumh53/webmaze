@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<!-- saved from url=(0092)https://sakai.duke.edu/access/content/group/COMPSCI-311-001-Sp23/Assignments/assignment.html -->
+<html><link type="text/css" rel="stylesheet" id="dark-mode-custom-link"><link type="text/css" rel="stylesheet" id="dark-mode-general-link"><style lang="en" type="text/css" id="dark-mode-custom-style"></style><style lang="en" type="text/css" id="dark-mode-native-style"></style><style lang="en" type="text/css" id="dark-mode-native-sheet"></style><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<link rel="stylesheet" href="./assignment1_files/github-markdown.min.css">
+<link rel="stylesheet" href="./assignment1_files/default.min.css">
+<link rel="stylesheet" href="./assignment1_files/katex.min.css">
+<link rel="stylesheet" href="./assignment1_files/texmath.min.css">
+<link rel="stylesheet" href="file:///Users/cunha/.vscode/extensions/goessner.mdmath-2.7.4/themes/default/style.css">
+
+</head>
+<body class="markdown-body">
+<h1 dir="auto" id="netmaze---level-1">NetMaze - Level 1</h1>
+<p dir="auto">In this programming assignment we will develop a tool that will honor a sequence of network requests forming a "network maze" all the way to completion.  Students will develop a client that speaks a specific protocol, connects to a central server, and the honors the requests by making a sequence of network connections and message exchanges.</p>
+<h2 dir="auto" id="communication-protocol">Communication Protocol</h2>
+<h3 dir="auto" id="message-encoding">Message Encoding</h3>
+<p dir="auto">The protocol used in the programming assignment uses plain text.  Plain text (or any data, really) is sent over the network as a sequence of <em>bytes</em>.  Text needs to be converted into bytes before being transmitted over the network; and bytes received over the network need to be converted into text before they can be operated on.</p>
+<p dir="auto">To make conversion simple and support many languages, all text should be converted to bytes using plain <a href="https://en.wikipedia.org/wiki/ASCII">ASCII</a>; and bytes received over the network should be converted to ASCII text.</p>
+<blockquote dir="auto">
+<p dir="auto">The ASCII character set is extremely limiting, as it contains only basic Latin characters.  However, this is not a problem for our protocol as its messages use only basic Latin characters.  ASCII encoding will be sufficient for this assignment, with the advantage that ASCII encoding reduces complexity and avoids possible failure modes when dealing with more complex encodings.</p>
+<p dir="auto">Different programming languages and operating systems have different default string encodings.  The situation has significantly improved over the recent years as an increasing number of languages and operating systems have adopted <a href="https://en.wikipedia.org/wiki/UTF-8">UTF-8</a> as the default text encoding.  You should check how the language you chose for implementing the assignment handles string encoding; consult the instructor if you cannot find this information.</p>
+</blockquote>
+<p dir="auto">In Python, UTF-8 is the default encoding for strings.  Before sending a string over the network, you need to encode it.  Similarly, and you need to convert bytes read from the network into a string before you can operate on it.  The code below provides an example of how these steps can be achieved:</p>
+<pre><code class="code-line language-text" dir="auto"><div>&gt;&gt;&gt; english = "this is a UTF-8 string"
+&gt;&gt;&gt; buf = english.encode(encoding="ascii")
+&gt;&gt;&gt; print(buf)  # kind of works because the string only contains ASCII
+b'this is a UTF8 string'
+&gt;&gt;&gt; decoded_en = buf.decode(encoding="ascii")
+&gt;&gt;&gt; assert english == decoded_en
+</div></code></pre>
+<blockquote dir="auto">
+<p dir="auto">ASCII cannot encode non-Latin letters, here's an example:</p>
+<pre><code class="code-line language-text" dir="auto"><div>&gt;&gt;&gt; chinese = "这是一个 UTF-8 字符串"
+# Chinese is too powerful for plain ASCII:
+&gt;&gt;&gt; buf = chinese.encode(encoding="ascii")
+UnicodeEncodeError: 'ascii' codec can't encode characters ...
+&gt;&gt;&gt; buf = chinese.encode(encoding="utf8")
+&gt;&gt;&gt; print(buf)  # prints unreadable numerical byte values
+b'\xe8\xbf\x99\xe6\x98\xaf\xe4\xb8\x80\xe4\xb8\xaa UTF-8 ...'
+&gt;&gt;&gt; decoded_cn = buf.decode(encoding="utf8")
+&gt;&gt;&gt; assert chinese == decoded_cn
+</div></code></pre>
+</blockquote>
+<h3 dir="auto" id="message-framing">Message Framing</h3>
+<p dir="auto">We will use the TCP transport protocol in our programming assignment.  TCP guarantees that bytes are delivered reliably and in-order, which will ease implementation and debugging of the communication protocol.</p>
+<p dir="auto">However, TCP carries a sequence of bytes but does not define messages.  We need to define our own message framing mechanisms, which will specify where messages start and end.  In our protocol, message framing is defined by the newline character.  In other words, every message ends with a newline character; and the next message starts right after the newline character.</p>
+<blockquote dir="auto">
+<p dir="auto">The newline character is denoted as <code>'\n'</code> in most programming languages.  When using ASCII encoding, the newline character is one byte with value 10.</p>
+<p dir="auto">When reading messages, you should consider that TCP may read an arbitrary number of bytes from the network. It may read only part of a message, or it may read multiple messages at once. You need to make sure you correctly process complete messages by reading until you identify the newline character.</p>
+</blockquote>
+<h3 dir="auto" id="message-types">Message Types</h3>
+<p dir="auto">The client and server will exchange the messages described below:</p>
+<ul dir="auto">
+<li dir="auto">
+<p dir="auto"><code>query {port}</code>: The query message is sent by the server to a client.  It requests that the client either (1) establishes a new connection to the server at the specified TCP <code>port</code> if such a connection does not exist, or (2) send a new identification message to an existing connection to the specified <code>port</code>.</p>
+</li>
+<li dir="auto">
+<p dir="auto"><code>id {user}</code>: The <code>id</code> message is sent by clients to the server.  It must be sent whenever the client establishes a new connection (case 1 above) or is requested by the server (case 2 above).  The <code>user</code> should be an ASCII-compatible identifier, like your NetID.</p>
+</li>
+<li dir="auto">
+<p dir="auto"><code>status {message}</code>: The <code>status</code> message is sent by the server to a client.  It reports many possible error conditions on the server side to aid in debugging.  If the client implements the protocol correctly and follows the requests in the <code>query</code> messages sent by the server, it will eventually receive a <code>success</code> message, which indicates that the execution has finished successfully (i.e., the user has "exited the maze").</p>
+<p dir="auto">The following status messages are defined:</p>
+<pre><code class="code-line language-python" dir="auto"><div><span class="hljs-keyword">class</span> <span class="hljs-title class_">SessionStatus</span>(enum.StrEnum):
+    SUCCESS = <span class="hljs-string">"success"</span>
+    ID_READ_TIMEOUT = <span class="hljs-string">"timeout while reading identification message"</span>
+    ID_PARSE_ERROR = <span class="hljs-string">"failed to parse identification message"</span>
+    ID_WITHOUT_SESSION = <span class="hljs-string">"secondary connection but no active session"</span>
+    CONCURRENT_SESSION = <span class="hljs-string">"primary connection but existing active session"</span>
+    ID_FROM_DIFF_HOST = <span class="hljs-string">"identification from different remote host"</span>
+    DUPLICATE_SECONDARY = <span class="hljs-string">"duplicate secondary connection"</span>
+    UNEXPECTED_ID = <span class="hljs-string">"unexpected id message"</span>
+    INVALID_ID = <span class="hljs-string">"invalid identifier in id message"</span>
+</div></code></pre>
+</li>
+</ul>
+<h3 dir="auto" id="interactions">Interactions</h3>
+<p dir="auto">Clients start execution establishing a <em>primary</em> connection to the NetMaze server.  The NetMaze server runs on <code>vcm-32603.vm.duke.edu</code>.  A primary connection is always made to port 51200.  Upon establishment of the connection, the client should send an <code>id</code> message and start following the NetMaze protocol, i.e., following up on <code>query</code> messages.</p>
+<blockquote dir="auto">
+<p dir="auto">Connect to the server by opening a connection to <code>vcm-32603.vm.duke.edu</code> (the IPv4 is <code>67.159.95.167</code>) on port 51200.</p>
+</blockquote>
+<p dir="auto">Query messages specify a port number in the range [51201, 51250].  Clients should establish new <em>secondary</em> connections whenever a <code>query</code> message directs them to a port they have not yet connected to.  Your client should establish at most <em>one</em> secondary connection to each port in the 51201-51250 range.  (In other words, your client can have up to 50 secondary connections, one to each port.)</p>
+<p dir="auto">Your client should wait for a <code>status</code> message on the primary connection at any time.  A <code>status</code> message will be sent to your client whenever an error is detected by the server or when your client successfully follows all the <code>query</code> requests and "exits the maze".  Whenever a <code>status</code> message is received, your client should tear down all primary and secondary connections to the server.  (The server will close all connections from a client after sending a <code>status</code> message.)</p>
+<h2 dir="auto" id="goal">Goal</h2>
+<p dir="auto">Your goal is to implement a client that can reliably follow the protocol and receive a <code>status success</code> message from the server.  You do not need to implement the server, use the server provided by the instructor on <code>67.159.95.167:51200</code> for testing and developing your client.  For the purposes of grading:</p>
+<ol dir="auto">
+<li dir="auto">Execute your client and receive a <code>status success</code> message at least once using your NetID</li>
+<li dir="auto">Submit your work on Sakai, including
+<ol dir="auto">
+<li dir="auto">Your source code</li>
+<li dir="auto">A PDF describing how to compile and execute your code</li>
+</ol>
+</li>
+</ol>
+
+
+<div id="forest-ext-shadow-host"></div></body></html>

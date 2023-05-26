@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!-- saved from url=(0088)https://sakai.duke.edu/access/content/group/COMPSCI-311-001-Sp23/Assignments/phase2.html -->
+<html><link type="text/css" rel="stylesheet" id="dark-mode-custom-link"><link type="text/css" rel="stylesheet" id="dark-mode-general-link"><style lang="en" type="text/css" id="dark-mode-custom-style"></style><style lang="en" type="text/css" id="dark-mode-native-style"></style><style lang="en" type="text/css" id="dark-mode-native-sheet"></style><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<link rel="stylesheet" href="./phase2_files/github-markdown.min.css">
+<link rel="stylesheet" href="./phase2_files/default.min.css">
+<link rel="stylesheet" href="./phase2_files/katex.min.css">
+<link rel="stylesheet" href="./phase2_files/texmath.min.css">
+<link rel="stylesheet" href="file:///Users/cunha/.vscode/extensions/goessner.mdmath-2.7.4/themes/default/style.css">
+
+</head>
+<body class="markdown-body">
+<h1 dir="auto" id="netmaze---level-2">NetMaze - Level 2</h1>
+<p dir="auto">In this programming assignment we will extend our first implementation of NetMaze to allow for more complex interactions.  The protocol will follow the same encoding and framing approaches, but will support additional functions.  The extensions will require that your implementation accepts connections from the server and handles concurrent queries.</p>
+<h2 dir="auto" id="communication-protocol">Communication Protocol</h2>
+<h3 dir="auto" id="message-encoding-and-framing">Message Encoding and Framing</h3>
+<p dir="auto">The protocol will use the same encoding and framing: messages will be sent using ASCII encoding and framed using the newline character.</p>
+<h3 dir="auto" id="message-types">Message Types</h3>
+<p dir="auto">In additional to the messages in Level 1, your implementation will need to hand an additional type of message:</p>
+<ul dir="auto">
+<li dir="auto">
+<p dir="auto"><code>listen {port}</code>: The listen message is sent by the server to a client.  It requests that the client opens a new socket for receiving connections on the specified TCP port.  The server will establish one connection to this port some time in the future.  After establishing the connection, the server may send multiple <code>query</code> messages on the connection at any time before the client receives a <code>status success</code> message and "exits" the maze.</p>
+<p dir="auto">For each received <code>query</code> message, the client should behave as previously defined: The client should send an <code>id</code> message at the specified port).</p>
+</li>
+</ul>
+<blockquote dir="auto">
+<p dir="auto">The main challenge in completing this assignment after completing Level 1 is ensuring that your client can handle listening and exchanging messages on multiple sockets concurrently.</p>
+</blockquote>
+<p dir="auto">The following additional status message is defined:</p>
+<pre><code class="code-line language-python" dir="auto"><div><span class="hljs-keyword">class</span> <span class="hljs-title class_">SessionStatus</span>(enum.StrEnum):
+  ...
+  CONNECTION_FAILURE = <span class="hljs-string">"failure to connect to a remote port"</span>
+</div></code></pre>
+<h3 dir="auto" id="interactions">Interactions</h3>
+<p dir="auto">Interactions between the server and client continue to occur as previously specified for Level 1.  However, the server may send any number of <code>listen</code> messages to the client. For each <code>listen</code> message, the client should open a listening socket and wait for a connection. After the server establishes a connection, it may send multiple <code>query</code> messages to the client, which is required to identify itself with an <code>id</code> message at the port specified in each <code>query</code> message.  As in Level 1, the server may send additional <code>query</code> messages to the client whenever the client identifies itself with the server with an <code>id</code> message.</p>
+<p dir="auto">For Level 2, the primary connection should be established on port 51300 on <code>vcm-32603.vm.duke.edu</code>.  Secondary connections will be established to ports 51301-51350.  The <code>listen</code> messages will require that clients listen on a port between 51401-51450.</p>
+<p dir="auto">As before, your client should wait for a <code>status</code> message on the primary connection at any time.  A <code>status</code> message will be sent to your client whenever an error is detected by the server or when your client successfully follows all the <code>query</code> requests and "exits the maze".  Whenever a <code>status</code> message is received, your client should tear down all primary and secondary connections to the server.  (The server will close all connections from a client after sending a <code>status</code> message.)</p>
+<h2 dir="auto" id="goal">Goal</h2>
+<p dir="auto">Your goal is to implement a client that can reliably follow the protocol and receive a <code>status success</code> message from the server.  You do not need to implement the server, use the server provided by the instructor on <code>67.159.95.167:51300</code> for testing and developing your client.  For the purposes of grading:</p>
+<ol dir="auto">
+<li dir="auto">Execute your client and receive a <code>status success</code> message at least once using your NetID</li>
+<li dir="auto">Submit your work on Sakai, including
+<ol dir="auto">
+<li dir="auto">Your source code</li>
+<li dir="auto">A PDF describing how to compile and execute your code</li>
+</ol>
+</li>
+</ol>
+
+
+<div id="forest-ext-shadow-host"></div></body></html>
