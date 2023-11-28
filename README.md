@@ -68,9 +68,12 @@ est
     - json - handling messages
     - time - implementing slight delays
     - statistics - calculation
+### Summary
 
-
-Netmaze is a Python program designed to operate on the Netmaze protocol, where it performs various tasks before exiting a maze. It uses UTF-8 encoding, sends messages over TCP with newline framing, and has distinct message types like 'query', 'id', 'status', and 'listen' for communication between server and client. In contrast, Webmaze is a client-server implementation using remote procedure calls (RPCs) via a REST interface. The server handles REST requests like running Netmaze clients, retrieving query pages, and listing completed runs, with specific HTTP error handling. The client is a command-line program that issues REST requests to the server, managing tasks such as submitting run requests, listing completed runs, and computing statistical data from these runs. The server employs uuid for unique identifiers, asyncio for connection management, and Flask for REST requests. The client uses argparse for command-line interface, socket and json for communication, time for delays, and statistics for data analysis.
+Netmaze is a Python program designed to operate on the Netmaze protocol, where it performs various tasks before exiting a maze. It uses UTF-8 encoding, sends messages over TCP with newline framing, and has distinct message types like 'query', 'id', 'status', and 'listen' for communication between server and client. In contrast, - - 
+Webmaze is a client-server implementation using remote procedure calls (RPCs) via a REST interface. The server handles REST requests like running Netmaze clients, retrieving query pages, and listing completed runs, with specific HTTP error handling. The client is a command-line program that issues REST requests to the server, 
+managing tasks such as submitting run requests, listing completed runs, and computing statistical data from these runs. The server employs uuid for unique identifiers, asyncio for connection management, and Flask for REST requests. The client uses argparse for command-line interface, socket and json for communication, time for 
+delays, and statistics for data analysis.
 
 
 
